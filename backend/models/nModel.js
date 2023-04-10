@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 const objectSchema = new mongoose.Schema({
-    id : {
+    _id : {
         type: String,
     },
     title :{

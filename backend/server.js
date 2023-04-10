@@ -4,7 +4,7 @@ const mongoose = require('mongoose')
 const app = express()
 const port = 4000;
 
-const router = require('./routes/nRoutes')
+const nRoutes = require('./routes/nRoutes')
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -16,7 +16,7 @@ mongoose.connect('mongodb://localhost:27017/notepad', {
 
 
 
-app.use('/notes', router)
+app.use('/api/notes', nRoutes)
 
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))

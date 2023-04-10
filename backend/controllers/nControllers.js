@@ -1,8 +1,8 @@
 const express = require('express')
 const app = express()
-const uuid = require('uuid')
 const bodyParser = require('body-parser');
 const asyncHandler = require('express-async-handler')
+const mongoose = require('mongoose')
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -12,57 +12,105 @@ app.use(bodyParser.json());
 
 const Note = require('../models/nModel')
 
+//using promises to retrieve notes
 //get all notes
-const getNotes = asyncHandler(async(req, res) => {
-    const notes = await Note.find({});
-    res.json(notes)
-})
+// const getNotes = asyncHandler(async(req, res) => {
+//    await Note.find({}, (err, notes)=> {
+//       if(err){
+//         res.status(401).json({error:err})
+//       } else {
+//         res.json(notes)
+//       }
+//     });
+// })
+
+//callback function to retrieve notes
+const getNotes = (req, res) => {
+  Note.find({})
+    .then(notes => {
+      res.json(notes);
+    })
+    .catch(err => {
+      res.status(500).json({ error: err });
+    });
+};
 
 //get one note
-const getNote = asyncHandler(async(req, res) => {
-//     const note = await Note.findById({id : req.params.id});
 
-//   if (note) {
-//     res.send(note);
-//   } else {
-//     res.status(404).send({ message: 'Note not found' });
-//   }
-})
+const getNote = asyncHandler(async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id)
+
+    if (!note) {
+      res.status(404)
+      throw new Error('Note not found')
+    }
+
+    res.status(200).json(note)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+});
+
 
 //create a note
 const createNote = asyncHandler(async(req, res) => {
-    const note = await Note.create({
-        id: uuid.v4(),
-        title: req.body.title,
-        content: req.body.content,
-      });
+  const {title, content} = req.body;
+
+    const note = {
+        _id: new mongoose.Types.ObjectId(),
+        title,
+        content,
+      };
     
-      res.send({ message: 'Note created successfully', note });
+      try {
+        const newNote = await Note.create(note);
+        res.status(201).json(newNote);
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
 })
 
-const updateNote = asyncHandler(async(req,res) =>{
-    const note = Note.find(req.params.id);
+
+const updateNote = (req, res) => {
+  const id = req.params.id;
+  const updates = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid note ID' });
+  }
+
+  Note.findByIdAndUpdate(id, updates, { new: true })
+    .then((updatedNote) => {
+      if (updatedNote) {
+        res.json(updatedNote);
+      } else {
+        res.status(404).json({ message: 'Note not found' });
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ error: err.message });
+    });
+};
+
+const deleteNote = async (req, res) => {
+  const _id = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(_id)) {
+    return res.status(400).json({ message: 'Invalid note ID' });
+  }
+
+  try {
+    const note = await Note.findByIdAndDelete(_id);
 
     if (note) {
-      note.title = req.body.title || note.title;
-      note.content = req.body.content || note.content;
-  
-      res.send({ message: 'Note updated successfully', note });
+      res.json({ message: 'Note deleted successfully' });
     } else {
-      res.status(404).send({ message: 'Note not found' });
+      res.status(404).json({ message: 'Note not found' });
     }
-})
-
-const deleteNote = asyncHandler(async(req,res) =>{
-    const index = notes.findIndex((n) => n.id === req.params.id);
-
-  if (index !== -1) {
-    notes.splice(index, 1);
-
-    res.send({ message: 'Note deleted successfully' });
-  } else {
-    res.status(404).send({ message: 'Note not found' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-})
+};
 
-module.exports = {getNote, getNotes, createNote, updateNote, deleteNote}
+module.exports = {getNotes, getNote, createNote, updateNote, deleteNote}
